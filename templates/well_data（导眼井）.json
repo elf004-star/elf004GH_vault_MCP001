@@ -59,13 +59,7 @@
       {"topDepth_m": 0, "bottomDepth_m": 698, "od_mm": 339.7, "note_in": "13 3/8\""},
       {"topDepth_m": 0, "bottomDepth_m": 2600, "od_mm": 244.5, "note_in": "9 5/8\""}
     ],
-    "pilotHoleGuideLine": {
-      "topDepth_m": 2600,
-      "bottomDepth_m": 5150,
-      "diameter_mm": 215.9,
-      "display": false,
-      "highlight": true
-    }
+    "pilotHoleGuideLine": null
   },
   "legendConfig": {
     "casingLegend": true,
