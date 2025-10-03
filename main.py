@@ -10,6 +10,7 @@ import base64
 import os
 import shutil
 import time
+import glob
 from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -31,7 +32,7 @@ def validate_well_data(data: Dict[str, Any]) -> bool:
             return False
     
     # 验证井型
-    if data["wellType"] not in ["straight well", "horizontal well"]:
+    if data["wellType"] not in ["straight well", "deviated well", "horizontal well", "straight-to-horizontal well"]:
         return False
     
     # 验证深度数据
@@ -60,35 +61,34 @@ def update_well_data_file(data: Dict[str, Any]) -> bool:
 
 
 def run_well_generator() -> bool:
-    """执行井身结构生成器"""
+    """启动井身结构生成器并检测PNG生成"""
     try:
         generator_path = Path("井身结构图生成器.exe")
         if not generator_path.exists():
             print("井身结构图生成器.exe 不存在")
             return False
         
-        # 调用生成器
-        result = subprocess.run(
-            [str(generator_path)],
-            timeout=60  # 60秒超时
-        )
+        # 1. 启动前先清理所有PNG图片
+        print("清理现有PNG图片...")
+        cleanup_png_files()
         
-        if result.returncode != 0:
-            print(f"生成器执行失败，返回码: {result.returncode}")
+        # 2. 启动exe程序
+        print("启动井身结构生成器...")
+        process = subprocess.Popen([str(generator_path)])
+        print(f"井身结构生成器已启动，进程ID: {process.pid}")
+        
+        # 3. 检测PNG图片生成
+        if not wait_for_png_generation():
+            print("PNG图片生成检测失败")
             return False
         
-        # 检查输出文件
-        output_file = Path("well_structure_plot.png")
-        if not output_file.exists():
-            print("生成的图片文件不存在")
-            return False
+        # 4. 检测成功后等待1秒，然后继续
+        print("检测成功，等待1秒后继续...")
+        time.sleep(1)
         
         return True
-    except subprocess.TimeoutExpired:
-        print("生成器执行超时")
-        return False
     except Exception as e:
-        print(f"执行生成器失败: {e}")
+        print(f"启动生成器失败: {e}")
         return False
 
 
@@ -147,7 +147,8 @@ def move_generated_files(folder_path: str) -> bool:
             "drilling_fluid_pressure.csv",
             "drilling_fluid_pressure_raw.csv",
             "deviationData.csv",
-            "deviationData_raw.csv"
+            "deviationData_raw.csv",
+            "well_data.json"
         ]
         
         moved_files = []
@@ -190,14 +191,45 @@ def get_image_absolute_path(folder_path: str) -> str:
         return ""
 
 
-def wait_for_completion():
-    """等待3秒，确保exe程序完全结束"""
+def cleanup_png_files():
+    """清理文件夹内所有PNG图片"""
     try:
-        print("等待3秒，确保程序完全结束...")
-        time.sleep(3)
-        print("等待完成")
+        png_files = glob.glob("*.png")
+        cleaned_count = 0
+        for png_file in png_files:
+            try:
+                os.remove(png_file)
+                cleaned_count += 1
+                print(f"已删除PNG文件: {png_file}")
+            except Exception as e:
+                print(f"删除PNG文件失败 {png_file}: {e}")
+        
+        print(f"清理完成，共删除 {cleaned_count} 个PNG文件")
+        return True
     except Exception as e:
-        print(f"等待过程出错: {e}")
+        print(f"清理PNG文件失败: {e}")
+        return False
+
+
+def wait_for_png_generation(max_attempts: int = 10) -> bool:
+    """检测PNG图片生成，每隔1秒检查一次"""
+    try:
+        print("开始检测PNG图片生成...")
+        for attempt in range(max_attempts):
+            png_files = glob.glob("*.png")
+            if png_files:
+                print(f"检测到PNG图片生成: {png_files}")
+                print("exe程序启动成功")
+                return True
+            
+            print(f"第 {attempt + 1} 次检测，未发现PNG图片，继续等待...")
+            time.sleep(1)
+        
+        print(f"检测超时，{max_attempts} 次尝试后仍未发现PNG图片")
+        return False
+    except Exception as e:
+        print(f"检测PNG图片生成失败: {e}")
+        return False
 
 
 def get_folder_absolute_path(folder_path: str) -> str:
@@ -236,13 +268,12 @@ def cleanup_temp_files():
 
 
 @mcp.tool()
-def generate_well_structure(well_data: Dict[str, Any], output_format: str = "base64") -> Dict[str, Any]:
+def generate_well_structure(well_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     生成井身结构图
     
     Args:
-        well_data: 井数据JSON对象
-        output_format: 输出格式 ("base64" 或 "path")
+        well_data: 井数据JSON对象（必需）
     
     Returns:
         包含生成结果和图片数据的字典
@@ -266,17 +297,14 @@ def generate_well_structure(well_data: Dict[str, Any], output_format: str = "bas
                 "details": "无法写入well_data.json文件"
             }
         
-        # 执行生成器
+        # 启动生成器并检测PNG生成
         if not run_well_generator():
             return {
                 "success": False,
-                "error": "井身结构生成器执行失败",
+                "error": "井身结构生成器启动失败",
                 "error_code": "GENERATOR_ERROR",
-                "details": "生成器无法正常执行或生成图片"
+                "details": "生成器无法正常启动或PNG图片生成检测失败"
             }
-        
-        # 等待3秒，确保exe程序完全结束
-        wait_for_completion()
         
         # 创建时间戳文件夹并移动生成的文件
         timestamp_folder = create_timestamp_folder()
@@ -312,18 +340,21 @@ def generate_well_structure(well_data: Dict[str, Any], output_format: str = "bas
         # 清理临时文件
         cleanup_temp_files()
         
+        # 格式化简化回答
+        formatted_response = format_simple_response(image_path)
+        
         # 返回成功结果
-        well_name = well_data.get("wellName", "")
         return {
             "success": True,
-            "response": "注意！给用户回答的时候，必须在合适的地方添加Markdown格式链接引用，如：![well_name](image_path)",
+            "response": formatted_response,
+            "notice": "注意，必须将上面这项<response>包含在最终回答中",
             "well_info": {
-                "well_name": well_name,
+                "well_name": well_data.get("wellName", ""),
                 "well_type": well_data.get("wellType", ""),
                 "total_depth": well_data.get("totalDepth_m", 0)
             },
             "archive_folder": timestamp_folder,
-            "image_path": image_path,
+            "image_path": image_path
         }
         
     except Exception as e:
