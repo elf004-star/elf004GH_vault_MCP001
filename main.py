@@ -61,16 +61,16 @@ def update_well_data_file(data: Dict[str, Any]) -> bool:
 
 
 def run_well_generator() -> bool:
-    """启动井身结构生成器并检测PNG生成"""
+    """启动井身结构生成器并检测PNG和报告文件生成"""
     try:
         generator_path = Path("井身结构图生成器.exe")
         if not generator_path.exists():
             print("井身结构图生成器.exe 不存在")
             return False
         
-        # 1. 启动前先清理所有PNG图片
-        print("清理现有PNG图片...")
-        cleanup_png_files()
+        # 1. 启动前先清理所有生成的文件
+        print("清理现有生成文件...")
+        cleanup_generated_files()
         
         # 2. 启动exe程序
         print("启动井身结构生成器...")
@@ -82,7 +82,12 @@ def run_well_generator() -> bool:
             print("PNG图片生成检测失败")
             return False
         
-        # 4. 检测成功后等待1秒，然后继续
+        # 4. 检测报告文件生成
+        if not wait_for_report_generation():
+            print("报告文件生成检测失败")
+            return False
+        
+        # 5. 检测成功后等待1秒，然后继续
         print("检测成功，等待1秒后继续...")
         time.sleep(1)
         
@@ -90,26 +95,6 @@ def run_well_generator() -> bool:
     except Exception as e:
         print(f"启动生成器失败: {e}")
         return False
-
-
-def get_generated_image(format: str = "base64") -> Optional[str]:
-    """获取生成的图片数据"""
-    try:
-        image_path = Path("well_structure_plot.png")
-        if not image_path.exists():
-            return None
-        
-        if format == "base64":
-            with open(image_path, "rb") as f:
-                image_data = base64.b64encode(f.read()).decode('utf-8')
-            return image_data
-        elif format == "path":
-            return str(image_path.absolute())
-        else:
-            return None
-    except Exception as e:
-        print(f"获取图片数据失败: {e}")
-        return None
 
 
 def create_timestamp_folder() -> str:
@@ -124,8 +109,8 @@ def create_timestamp_folder() -> str:
         return ""
 
 
-def move_generated_files(folder_path: str) -> bool:
-    """移动生成的文件到时间戳文件夹"""
+def move_files_except_md(folder_path: str) -> bool:
+    """移动生成的文件到时间戳文件夹（除了MD文件）"""
     try:
         if not folder_path:
             return False
@@ -134,10 +119,20 @@ def move_generated_files(folder_path: str) -> bool:
         if not target_folder.exists():
             return False
         
-        # 需要移动的文件列表
-        files_to_move = [
-            "well_structure_plot.png",
-            "well_structure_report.md",
+        moved_files = []
+        
+        # 1. 移动PNG文件
+        png_files = ["well_structure_plot.png"]
+        for filename in png_files:
+            source_file = Path(filename)
+            if source_file.exists():
+                target_file = target_folder / filename
+                shutil.move(str(source_file), str(target_file))
+                moved_files.append(filename)
+                print(f"已移动PNG文件: {filename}")
+        
+        # 2. 移动CSV文件
+        csv_files = [
             "stratigraphy.csv",
             "stratigraphy_raw.csv",
             "casing_sections.csv", 
@@ -147,17 +142,123 @@ def move_generated_files(folder_path: str) -> bool:
             "drilling_fluid_pressure.csv",
             "drilling_fluid_pressure_raw.csv",
             "deviationData.csv",
-            "deviationData_raw.csv",
-            "well_data.json"
+            "deviationData_raw.csv"
         ]
-        
-        moved_files = []
-        for filename in files_to_move:
+        for filename in csv_files:
             source_file = Path(filename)
             if source_file.exists():
                 target_file = target_folder / filename
                 shutil.move(str(source_file), str(target_file))
                 moved_files.append(filename)
+                print(f"已移动CSV文件: {filename}")
+        
+        # 3. 移动JSON文件
+        json_files = ["well_data.json"]
+        for filename in json_files:
+            source_file = Path(filename)
+            if source_file.exists():
+                target_file = target_folder / filename
+                shutil.move(str(source_file), str(target_file))
+                moved_files.append(filename)
+                print(f"已移动JSON文件: {filename}")
+        
+        print(f"已移动 {len(moved_files)} 个文件到文件夹: {folder_path}")
+        return True
+        
+    except Exception as e:
+        print(f"移动文件失败: {e}")
+        return False
+
+
+def move_md_file(folder_path: str) -> bool:
+    """移动MD文件到时间戳文件夹"""
+    try:
+        if not folder_path:
+            return False
+        
+        target_folder = Path(folder_path)
+        if not target_folder.exists():
+            return False
+        
+        # 移动MD文件
+        md_file = "well_structure_report.md"
+        source_file = Path(md_file)
+        if source_file.exists():
+            target_file = target_folder / md_file
+            shutil.move(str(source_file), str(target_file))
+            print(f"已移动MD文件: {md_file}")
+            return True
+        else:
+            print(f"MD文件不存在: {md_file}")
+            return False
+        
+    except Exception as e:
+        print(f"移动MD文件失败: {e}")
+        return False
+
+
+def move_generated_files(folder_path: str) -> bool:
+    """按顺序移动生成的文件到时间戳文件夹"""
+    try:
+        if not folder_path:
+            return False
+        
+        target_folder = Path(folder_path)
+        if not target_folder.exists():
+            return False
+        
+        moved_files = []
+        
+        # 1. 移动PNG文件
+        png_files = ["well_structure_plot.png"]
+        for filename in png_files:
+            source_file = Path(filename)
+            if source_file.exists():
+                target_file = target_folder / filename
+                shutil.move(str(source_file), str(target_file))
+                moved_files.append(filename)
+                print(f"已移动PNG文件: {filename}")
+        
+        # 2. 移动CSV文件
+        csv_files = [
+            "stratigraphy.csv",
+            "stratigraphy_raw.csv",
+            "casing_sections.csv", 
+            "casing_sections_raw.csv",
+            "hole_sections.csv",
+            "hole_sections_raw.csv",
+            "drilling_fluid_pressure.csv",
+            "drilling_fluid_pressure_raw.csv",
+            "deviationData.csv",
+            "deviationData_raw.csv"
+        ]
+        for filename in csv_files:
+            source_file = Path(filename)
+            if source_file.exists():
+                target_file = target_folder / filename
+                shutil.move(str(source_file), str(target_file))
+                moved_files.append(filename)
+                print(f"已移动CSV文件: {filename}")
+        
+        # 3. 移动JSON文件
+        json_files = ["well_data.json"]
+        for filename in json_files:
+            source_file = Path(filename)
+            if source_file.exists():
+                target_file = target_folder / filename
+                shutil.move(str(source_file), str(target_file))
+                moved_files.append(filename)
+                print(f"已移动JSON文件: {filename}")
+        
+        # 4. 移动MD文件（最后移动）
+        md_files = ["well_structure_report.md"]
+        for filename in md_files:
+            source_file = Path(filename)
+            if source_file.exists():
+                target_file = target_folder / filename
+                shutil.move(str(source_file), str(target_file))
+                moved_files.append(filename)
+                print(f"已移动MD文件: {filename}")
         
         print(f"已移动 {len(moved_files)} 个文件到文件夹: {folder_path}")
         return True
@@ -191,12 +292,46 @@ def get_image_absolute_path(folder_path: str) -> str:
         return ""
 
 
-def cleanup_png_files():
-    """清理文件夹内所有PNG图片"""
+def cleanup_generated_files():
+    """清理指定的生成文件"""
     try:
-        png_files = glob.glob("*.png")
         cleaned_count = 0
-        for png_file in png_files:
+        
+        # 1. 清理报告文件
+        report_file = "well_structure_report.md"
+        if os.path.exists(report_file):
+            try:
+                os.remove(report_file)
+                cleaned_count += 1
+                print(f"已删除报告文件: {report_file}")
+            except Exception as e:
+                print(f"删除报告文件失败 {report_file}: {e}")
+        
+        # 2. 清理所有CSV文件
+        csv_files = [
+            "stratigraphy.csv",
+            "stratigraphy_raw.csv",
+            "casing_sections.csv",
+            "casing_sections_raw.csv",
+            "hole_sections.csv",
+            "hole_sections_raw.csv",
+            "drilling_fluid_pressure.csv",
+            "drilling_fluid_pressure_raw.csv",
+            "deviationData.csv",
+            "deviationData_raw.csv"
+        ]
+        for csv_file in csv_files:
+            if os.path.exists(csv_file):
+                try:
+                    os.remove(csv_file)
+                    cleaned_count += 1
+                    print(f"已删除CSV文件: {csv_file}")
+                except Exception as e:
+                    print(f"删除CSV文件失败 {csv_file}: {e}")
+        
+        # 3. 清理指定的PNG文件
+        png_file = "well_structure_plot.png"
+        if os.path.exists(png_file):
             try:
                 os.remove(png_file)
                 cleaned_count += 1
@@ -204,10 +339,10 @@ def cleanup_png_files():
             except Exception as e:
                 print(f"删除PNG文件失败 {png_file}: {e}")
         
-        print(f"清理完成，共删除 {cleaned_count} 个PNG文件")
+        print(f"清理完成，共删除 {cleaned_count} 个文件")
         return True
     except Exception as e:
-        print(f"清理PNG文件失败: {e}")
+        print(f"清理生成文件失败: {e}")
         return False
 
 
@@ -229,6 +364,25 @@ def wait_for_png_generation(max_attempts: int = 10) -> bool:
         return False
     except Exception as e:
         print(f"检测PNG图片生成失败: {e}")
+        return False
+
+
+def wait_for_report_generation(max_attempts: int = 10) -> bool:
+    """检测报告文件生成，每隔1秒检查一次"""
+    try:
+        print("开始检测报告文件生成...")
+        for attempt in range(max_attempts):
+            if os.path.exists("well_structure_report.md"):
+                print("检测到报告文件生成: well_structure_report.md")
+                return True
+            
+            print(f"第 {attempt + 1} 次检测，未发现报告文件，继续等待...")
+            time.sleep(1)
+        
+        print(f"检测超时，{max_attempts} 次尝试后仍未发现报告文件")
+        return False
+    except Exception as e:
+        print(f"检测报告文件生成失败: {e}")
         return False
 
 
@@ -316,6 +470,10 @@ def generate_well_structure(well_data: Dict[str, Any]) -> Dict[str, Any]:
                 "details": "无法创建时间戳文件夹"
             }
         
+        # 先读取MD文件内容
+        report_content = read_report_content("well_structure_report.md")
+        
+        # 一起移动所有文件
         if not move_generated_files(timestamp_folder):
             return {
                 "success": False,
@@ -346,8 +504,9 @@ def generate_well_structure(well_data: Dict[str, Any]) -> Dict[str, Any]:
         # 返回成功结果
         return {
             "success": True,
+            "report_content": report_content,
             "response": formatted_response,
-            "notice": "注意，必须将上面这项<response>包含在最终回答中",
+            "notice": "注意，先整理<report_content>，必须将上面这项<response>包含在整理后的<report_content>中",
             "well_info": {
                 "well_name": well_data.get("wellName", ""),
                 "well_type": well_data.get("wellType", ""),
