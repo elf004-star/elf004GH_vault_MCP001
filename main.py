@@ -108,95 +108,6 @@ def create_timestamp_folder() -> str:
         print(f"创建时间戳文件夹失败: {e}")
         return ""
 
-
-def move_files_except_md(folder_path: str) -> bool:
-    """移动生成的文件到时间戳文件夹（除了MD文件）"""
-    try:
-        if not folder_path:
-            return False
-        
-        target_folder = Path(folder_path)
-        if not target_folder.exists():
-            return False
-        
-        moved_files = []
-        
-        # 1. 移动PNG文件
-        png_files = ["well_structure_plot.png"]
-        for filename in png_files:
-            source_file = Path(filename)
-            if source_file.exists():
-                target_file = target_folder / filename
-                shutil.move(str(source_file), str(target_file))
-                moved_files.append(filename)
-                print(f"已移动PNG文件: {filename}")
-        
-        # 2. 移动CSV文件
-        csv_files = [
-            "stratigraphy.csv",
-            "stratigraphy_raw.csv",
-            "casing_sections.csv", 
-            "casing_sections_raw.csv",
-            "hole_sections.csv",
-            "hole_sections_raw.csv",
-            "drilling_fluid_pressure.csv",
-            "drilling_fluid_pressure_raw.csv",
-            "deviationData.csv",
-            "deviationData_raw.csv"
-        ]
-        for filename in csv_files:
-            source_file = Path(filename)
-            if source_file.exists():
-                target_file = target_folder / filename
-                shutil.move(str(source_file), str(target_file))
-                moved_files.append(filename)
-                print(f"已移动CSV文件: {filename}")
-        
-        # 3. 移动JSON文件
-        json_files = ["well_data.json"]
-        for filename in json_files:
-            source_file = Path(filename)
-            if source_file.exists():
-                target_file = target_folder / filename
-                shutil.move(str(source_file), str(target_file))
-                moved_files.append(filename)
-                print(f"已移动JSON文件: {filename}")
-        
-        print(f"已移动 {len(moved_files)} 个文件到文件夹: {folder_path}")
-        return True
-        
-    except Exception as e:
-        print(f"移动文件失败: {e}")
-        return False
-
-
-def move_md_file(folder_path: str) -> bool:
-    """移动MD文件到时间戳文件夹"""
-    try:
-        if not folder_path:
-            return False
-        
-        target_folder = Path(folder_path)
-        if not target_folder.exists():
-            return False
-        
-        # 移动MD文件
-        md_file = "well_structure_report.md"
-        source_file = Path(md_file)
-        if source_file.exists():
-            target_file = target_folder / md_file
-            shutil.move(str(source_file), str(target_file))
-            print(f"已移动MD文件: {md_file}")
-            return True
-        else:
-            print(f"MD文件不存在: {md_file}")
-            return False
-        
-    except Exception as e:
-        print(f"移动MD文件失败: {e}")
-        return False
-
-
 def move_generated_files(folder_path: str) -> bool:
     """按顺序移动生成的文件到时间戳文件夹"""
     try:
@@ -276,21 +187,6 @@ def read_report_content(report_path: str) -> str:
     except Exception as e:
         print(f"读取报告内容失败: {e}")
         return ""
-
-
-def get_image_absolute_path(folder_path: str) -> str:
-    """获取图片绝对路径"""
-    try:
-        image_path = Path(folder_path) / "well_structure_plot.png"
-        if image_path.exists():
-            return str(image_path.absolute())
-        else:
-            print("图片文件不存在")
-            return ""
-    except Exception as e:
-        print(f"获取图片路径失败: {e}")
-        return ""
-
 
 def cleanup_generated_files():
     """清理指定的生成文件"""
