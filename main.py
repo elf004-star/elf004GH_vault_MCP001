@@ -316,16 +316,18 @@ def generate_well_structure(well_data: Dict[str, Any], output_format: str = "bas
         formatted_response = format_simple_response(image_path)
         
         # 返回成功结果
+        well_name = well_data.get("wellName", "")
         return {
             "success": True,
             "response": formatted_response,
             "well_info": {
-                "well_name": well_data.get("wellName", ""),
+                "well_name": well_name,
                 "well_type": well_data.get("wellType", ""),
                 "total_depth": well_data.get("totalDepth_m", 0)
             },
             "archive_folder": timestamp_folder,
-            "image_path": image_path
+            "image_path": image_path,
+            "system_prompt": f"请给用户组合回答的时候，在合适的地方添加Markdown格式的链接引用，如：![{well_name}]({image_path})"
         }
         
     except Exception as e:

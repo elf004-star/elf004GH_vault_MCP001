@@ -68,7 +68,8 @@ python main.py
     "total_depth": 深度
   },
   "archive_folder": "2025-10-03_11-37-29",
-  "image_path": "图片的绝对路径"
+  "image_path": "图片的绝对路径",
+  "system_prompt": "请给用户组合回答的时候，在合适的地方添加Markdown格式的链接引用，如：![井名](图片绝对路径)"
 }
 ```
 
