@@ -312,14 +312,11 @@ def generate_well_structure(well_data: Dict[str, Any], output_format: str = "bas
         # 清理临时文件
         cleanup_temp_files()
         
-        # 格式化简化回答
-        formatted_response = format_simple_response(image_path)
-        
         # 返回成功结果
         well_name = well_data.get("wellName", "")
         return {
             "success": True,
-            "response": formatted_response,
+            "response": "注意！给用户回答的时候，必须在合适的地方添加Markdown格式链接引用，如：![well_name](image_path)",
             "well_info": {
                 "well_name": well_name,
                 "well_type": well_data.get("wellType", ""),
@@ -327,7 +324,6 @@ def generate_well_structure(well_data: Dict[str, Any], output_format: str = "bas
             },
             "archive_folder": timestamp_folder,
             "image_path": image_path,
-            "system_prompt": f"请给用户组合回答的时候，在合适的地方添加Markdown格式的链接引用，如：![{well_name}]({image_path})"
         }
         
     except Exception as e:
