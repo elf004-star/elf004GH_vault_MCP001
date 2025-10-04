@@ -6,13 +6,12 @@
 
 import json
 import subprocess
-import base64
 import os
 import shutil
 import time
 import glob
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from datetime import datetime
 from mcp.server.fastmcp import FastMCP
 
