@@ -140,7 +140,8 @@ def move_generated_files(folder_path: str) -> bool:
             "drilling_fluid_pressure.csv",
             "drilling_fluid_pressure_raw.csv",
             "deviationData.csv",
-            "deviationData_raw.csv"
+            "deviationData_raw.csv",
+            "location.csv"
         ]
         for filename in csv_files:
             source_file = Path(filename)
