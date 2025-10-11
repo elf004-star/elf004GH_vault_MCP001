@@ -42,14 +42,22 @@ if %errorlevel% neq 0 (
 )
 
 REM Check for virtual environment
-if not exist .venv (
-    echo Creating virtual environment with uv...
-    uv .venv
+if not exist .venv if not exist venv (
+    echo No virtual environment found, creating '.venv'...
+    uv venv
 )
 
 REM Activate virtual environment, install dependencies, and run script
 echo Activating virtual environment...
-call .venv\Scripts\activate.bat
+if exist .venv\Scripts\activate.bat (
+    call .venv\Scripts\activate.bat
+) else if exist venv\Scripts\activate.bat (
+    call venv\Scripts\activate.bat
+) else (
+    echo Could not find activation script for virtual environment.
+    pause
+    exit /b 1
+)
 
 echo Installing dependencies from pyproject.toml...
 uv sync
