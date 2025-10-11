@@ -1,71 +1,80 @@
 @echo off
-setlocal
+chcp 65001 >nul
+echo ========================================
+echo   井身结构MCP服务启动脚本
+echo ========================================
+echo.
 
-REM Set Python version and installer URL
-set PYTHON_VERSION=3.13.0
-set PYTHON_INSTALLER_URL=https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-amd64.exe
-set PYTHON_INSTALLER_FILENAME=python_installer.exe
-
-REM Check for Python in PATH
-python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Python not found in PATH.
-    echo Downloading Python %PYTHON_VERSION%...
-    powershell -Command "Invoke-WebRequest -Uri '%PYTHON_INSTALLER_URL%' -OutFile '%PYTHON_INSTALLER_FILENAME%'"
-    if %errorlevel% neq 0 (
-        echo Failed to download Python installer. Please check your internet connection.
-        pause
-        exit /b 1
-    )
-
-    echo Installing Python...
-    start /wait %PYTHON_INSTALLER_FILENAME% /quiet InstallAllUsers=0 PrependPath=1
-    del %PYTHON_INSTALLER_FILENAME%
-
+REM 检查 uv 是否安装
+where uv >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo [错误] 未找到 uv 工具！
     echo.
-    echo Python installation complete.
-    echo PLEASE RE-RUN THIS SCRIPT in a new command prompt to ensure Python is available in the PATH.
+    echo 请先安装 uv，可以使用以下命令之一：
+    echo   1. PowerShell: irm https://astral.sh/uv/install.ps1 ^| iex
+    echo   2. 或访问: https://github.com/astral-sh/uv
     echo.
-    pause
-    exit /b 0
-) else (
-    echo Python is already installed.
-)
-
-REM Check if uv is installed
-uv --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo uv not found, installing/updating...
-    pip install -U uv
-) else (
-    echo uv is already installed.
-)
-
-REM Check for virtual environment
-if not exist .venv if not exist venv (
-    echo No virtual environment found, creating '.venv'...
-    uv venv
-)
-
-REM Activate virtual environment, install dependencies, and run script
-echo Activating virtual environment...
-if exist .venv\Scripts\activate.bat (
-    call .venv\Scripts\activate.bat
-) else if exist venv\Scripts\activate.bat (
-    call venv\Scripts\activate.bat
-) else (
-    echo Could not find activation script for virtual environment.
     pause
     exit /b 1
 )
 
-echo Installing dependencies from pyproject.toml...
-uv sync
+echo [√] 检测到 uv 工具
+echo.
 
-echo Running main.py...
-python main.py
+REM 检查 pyproject.toml 是否存在
+if not exist "pyproject.toml" (
+    echo [错误] 未找到 pyproject.toml 文件！
+    echo 请确保在项目根目录下运行此脚本。
+    echo.
+    pause
+    exit /b 1
+)
+
+echo [√] 找到 pyproject.toml
+echo.
+
+REM 检查 main.py 是否存在
+if not exist "main.py" (
+    echo [错误] 未找到 main.py 文件！
+    echo 请确保在项目根目录下运行此脚本。
+    echo.
+    pause
+    exit /b 1
+)
+
+echo [√] 找到 main.py
+echo.
+
+echo [*] 正在使用 uv 创建虚拟环境并安装依赖...
+echo     (首次运行可能需要下载 Python 和依赖包，请耐心等待)
+echo.
+
+REM 使用 uv sync 来同步环境
+uv sync
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo [错误] 环境同步失败！
+    echo.
+    pause
+    exit /b 1
+)
 
 echo.
-echo Script finished.
-pause
-endlocal
+echo [√] 虚拟环境创建完成，依赖安装成功
+echo.
+echo ========================================
+echo   正在启动 MCP 服务...
+echo ========================================
+echo.
+
+REM 使用 uv run 运行 main.py
+uv run python main.py
+
+REM 如果程序异常退出，暂停以便查看错误信息
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo [错误] 程序异常退出，错误代码: %ERRORLEVEL%
+    echo.
+    pause
+)
+
