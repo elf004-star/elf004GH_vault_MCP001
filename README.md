@@ -1,4 +1,4 @@
-# Awesome Well Structure MCP 服务（备份仓库）
+# Awesome Well Structure MCP 服务（稳定版本仓库）
 
 这是一个基于 MCP (Model Context Protocol)协议 的井身结构图生成工具，可以根据井数据自动生成井身结构图。由西南石油大学钻井所，何世明——汤明实验室团体提供技术支持。
 
